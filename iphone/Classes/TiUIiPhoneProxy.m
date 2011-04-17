@@ -50,6 +50,9 @@
 #ifdef USE_TI_UIIPHONETABLEVIEWCELLSELECTIONSTYLE
 	#import "TiUITableViewCellSelectionStyleProxy.h"
 #endif
+#ifdef USE_TI_UIIPHONETABLEVIEWCELLSTYLE
+	#import "TiUITableViewCellStyleProxy.h"
+#endif
 #ifdef USE_TI_UIIPHONENAVIGATIONGROUP
 	#import "TiUIiPhoneNavigationGroupProxy.h"
 #endif
@@ -106,6 +109,9 @@
 #ifdef USE_TI_UIIPHONETABLEVIEWCELLSELECTIONSTYLE
 	RELEASE_TO_NIL(tableViewCellSelectionStyle);
 #endif
+#ifdef USE_TI_UIIPHONETABLEVIEWCELLSTYLE
+	RELEASE_TO_NIL(tableViewCellStyle);
+#endif
 	[super dealloc];
 }
 
@@ -157,6 +163,9 @@
 #endif
 #ifdef USE_TI_UIIPHONETABLEVIEWCELLSELECTIONSTYLE
 	DEFINE_SUBPROXY(TableViewCellSelectionStyle,tableViewCellSelectionStyle);
+#endif
+#ifdef USE_TI_UIIPHONETABLEVIEWCELLSTYLE
+	DEFINE_SUBPROXY(TableViewCellStyle,tableViewCellStyle);
 #endif
 
 #if __IPHONE_OS_VERSION_MAX_ALLOWED >= __IPHONE_3_2
@@ -356,6 +365,9 @@ MAKE_SYSTEM_PROP(MODAL_PRESENTATION_CURRENT_CONTEXT,UIModalPresentationCurrentCo
 #endif
 #ifdef USE_TI_UIIPHONETABLEVIEWCELLSELECTIONSTYLE
 	RELEASE_TO_NIL(tableViewCellSelectionStyle);
+#endif
+#ifdef USE_TI_UIIPHONETABLEVIEWCELLSTYLE
+	RELEASE_TO_NIL(tableViewCellStyle);
 #endif
 	[super didReceiveMemoryWarning:notification];
 }

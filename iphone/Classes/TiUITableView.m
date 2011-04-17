@@ -1543,7 +1543,9 @@ if(ourTableView != tableview)	\
 	UITableViewCell *cell = [ourTableView dequeueReusableCellWithIdentifier:row.tableClass];
 	if (cell == nil)
 	{
-		cell = [[[TiUITableViewCell alloc] initWithStyle:UITableViewCellStyleDefault reuseIdentifier:row.tableClass row:row] autorelease];
+		id styleValue = [row valueForKey:@"style"];
+		UITableViewCellStyle style = [TiUtils intValue:styleValue def:UITableViewCellStyleDefault];
+		cell = [[[TiUITableViewCell alloc] initWithStyle:style reuseIdentifier:row.tableClass row:row] autorelease];
 	}
 	else
 	{

@@ -388,6 +388,26 @@ TiProxy * DeepScanForProxyOfViewContainingPoint(UIView * targetView, CGPoint poi
 	}
 }
 
+-(void)configureDetail:(UITableViewCell*)cell
+{
+	UILabel * detailTextLabel = [cell detailTextLabel];
+
+	NSString *title = [self valueForKey:@"detail"];
+	if (title!=nil)
+	{
+		[detailTextLabel setText:title]; //UILabel already checks to see if it hasn't changed.
+		UIColor * detailTextColor = [[TiUtils colorValue:[self valueForKey:@"detailColor"]] _color];
+		[detailTextLabel setTextColor:(detailTextColor==nil)?[[TiUtils colorValue:@"#00366c"] _color]:detailTextColor];
+		
+		UIColor * selectedDetailTextColor = [[TiUtils colorValue:[self valueForKey:@"selectedDetailColor"]] _color];
+		[detailTextLabel setHighlightedTextColor:(selectedDetailTextColor==nil)?[UIColor whiteColor]:selectedDetailTextColor];	
+	}
+	else
+	{
+		[detailTextLabel setText:nil];
+	}
+}
+
 -(void)configureRightSide:(UITableViewCell*)cell
 {
 	BOOL hasChild = [TiUtils boolValue:[self valueForKey:@"hasChild"] def:NO];
@@ -788,6 +808,7 @@ TiProxy * DeepScanForProxyOfViewContainingPoint(UIView * targetView, CGPoint poi
 {
 	modifyingRow = YES;
 	[self configureTitle:cell];
+	[self configureDetail:cell];
 	[self configureSelectionStyle:cell];
 	[self configureLeftSide:cell];
 	[self configureRightSide:cell];

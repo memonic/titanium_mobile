@@ -505,6 +505,9 @@
 		24FBE5AF11293DD1005C8D48 /* CAStreamBasicDescription.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 24FBE5AA11293DD1005C8D48 /* CAStreamBasicDescription.cpp */; };
 		24FBE5B011293DD1005C8D48 /* CAXException.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 24FBE5AC11293DD1005C8D48 /* CAXException.cpp */; };
 		288765FD0DF74451002DB57D /* CoreGraphics.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 288765FC0DF74451002DB57D /* CoreGraphics.framework */; };
+		6B69D1E1135AECA7004BBC24 /* TiUITableViewCellStyleProxy.m in Sources */ = {isa = PBXBuildFile; fileRef = 6B69D1E0135AECA7004BBC24 /* TiUITableViewCellStyleProxy.m */; };
+		6B69D1E2135AECA7004BBC24 /* TiUITableViewCellStyleProxy.m in Sources */ = {isa = PBXBuildFile; fileRef = 6B69D1E0135AECA7004BBC24 /* TiUITableViewCellStyleProxy.m */; };
+		6B69D1E3135AECA7004BBC24 /* TiUITableViewCellStyleProxy.m in Sources */ = {isa = PBXBuildFile; fileRef = 6B69D1E0135AECA7004BBC24 /* TiUITableViewCellStyleProxy.m */; };
 		B421C4121113AA9300DBCB42 /* TiUIScrollableViewProxy.m in Sources */ = {isa = PBXBuildFile; fileRef = B421C4111113AA9300DBCB42 /* TiUIScrollableViewProxy.m */; };
 		B421C4161113AAA900DBCB42 /* TiUIScrollableView.m in Sources */ = {isa = PBXBuildFile; fileRef = B421C4151113AAA900DBCB42 /* TiUIScrollableView.m */; };
 		B440EF7E1209DC400045FEAE /* MGSplitCornersView.m in Sources */ = {isa = PBXBuildFile; fileRef = B440EF791209DC400045FEAE /* MGSplitCornersView.m */; };
@@ -1358,6 +1361,8 @@
 		288765FC0DF74451002DB57D /* CoreGraphics.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = CoreGraphics.framework; path = System/Library/Frameworks/CoreGraphics.framework; sourceTree = SDKROOT; };
 		29B97316FDCFA39411CA2CEA /* main.m */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.objc; path = main.m; sourceTree = "<group>"; };
 		32CA4F630368D1EE00C91783 /* Titanium_Prefix.pch */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = Titanium_Prefix.pch; sourceTree = "<group>"; };
+		6B69D1DF135AECA7004BBC24 /* TiUITableViewCellStyleProxy.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = TiUITableViewCellStyleProxy.h; sourceTree = "<group>"; };
+		6B69D1E0135AECA7004BBC24 /* TiUITableViewCellStyleProxy.m */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.objc; path = TiUITableViewCellStyleProxy.m; sourceTree = "<group>"; };
 		B421C4101113AA9300DBCB42 /* TiUIScrollableViewProxy.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = TiUIScrollableViewProxy.h; sourceTree = "<group>"; };
 		B421C4111113AA9300DBCB42 /* TiUIScrollableViewProxy.m */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.objc; path = TiUIScrollableViewProxy.m; sourceTree = "<group>"; };
 		B421C4141113AAA900DBCB42 /* TiUIScrollableView.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = TiUIScrollableView.h; sourceTree = "<group>"; };
@@ -2268,6 +2273,8 @@
 				243ED8EC11288B4300639DF4 /* TiUITableViewScrollPositionProxy.m */,
 				245B455F1139B41800CE7530 /* TiUITableViewCellSelectionStyleProxy.h */,
 				245B45601139B41800CE7530 /* TiUITableViewCellSelectionStyleProxy.m */,
+				6B69D1DF135AECA7004BBC24 /* TiUITableViewCellStyleProxy.h */,
+				6B69D1E0135AECA7004BBC24 /* TiUITableViewCellStyleProxy.m */,
 			);
 			name = iPhone;
 			sourceTree = "<group>";
@@ -3237,6 +3244,7 @@
 				DABA10C312E676A1007DD791 /* FBLoginButton.m in Sources */,
 				DABA10C412E676A1007DD791 /* FBLoginDialog.m in Sources */,
 				DABA10C512E676A1007DD791 /* FBRequest.m in Sources */,
+				6B69D1E1135AECA7004BBC24 /* TiUITableViewCellStyleProxy.m in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -3500,6 +3508,7 @@
 				DABA10C812E676A1007DD791 /* FBLoginButton.m in Sources */,
 				DABA10C912E676A1007DD791 /* FBLoginDialog.m in Sources */,
 				DABA10CA12E676A1007DD791 /* FBRequest.m in Sources */,
+				6B69D1E2135AECA7004BBC24 /* TiUITableViewCellStyleProxy.m in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -3763,6 +3772,7 @@
 				DABB379E12E8CB280026A6EA /* FBLoginButton.m in Sources */,
 				DABB379F12E8CB280026A6EA /* FBLoginDialog.m in Sources */,
 				DABB37A012E8CB280026A6EA /* FBRequest.m in Sources */,
+				6B69D1E3135AECA7004BBC24 /* TiUITableViewCellStyleProxy.m in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
