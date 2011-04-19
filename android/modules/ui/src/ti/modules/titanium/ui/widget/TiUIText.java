@@ -371,6 +371,7 @@ public class TiUIText extends TiUIView
 		}
 		if (passwordMask) {
 			tv.setTransformationMethod(PasswordTransformationMethod.getInstance());
+			tv.setInputType(InputType.TYPE_TEXT_VARIATION_PASSWORD);
 		}
 		if (!field) {
 			tv.setSingleLine(false);
