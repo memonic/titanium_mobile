@@ -24,10 +24,18 @@ public class APIModule extends KrollModule
 	@Kroll.constant public static final int ERROR = 6;
 	@Kroll.constant public static final int CRITICAL = 7;
 	@Kroll.constant public static final int FATAL = 8;
+	
+	private int logLevel = TRACE; // by default, log everything
 
 	public APIModule(TiContext tiContext) {
 		super(tiContext);
 	}
+	
+	@Kroll.setProperty
+	public void setLogLevel(int logLevel) {
+		this.logLevel = logLevel;
+	}
+	
 
 	private String toString(Object msg) {
 		if (msg == null) {
@@ -38,37 +46,51 @@ public class APIModule extends KrollModule
 	
 	@Kroll.method
 	public void debug(Object msg) {
-		Log.d(LCAT, toString(msg));
+		if (this.logLevel <= DEBUG) {
+			Log.d(LCAT, toString(msg));
+		}
 	}
 
 	@Kroll.method
 	public void info(Object msg) {
-		Log.i(LCAT, toString(msg));
+		if (this.logLevel <= INFO) {
+			Log.i(LCAT, toString(msg));
+		}
 	}
 
 	@Kroll.method
 	public void warn(Object msg) {
-		Log.w(LCAT, toString(msg));
+		if (this.logLevel <= WARN) {
+			Log.w(LCAT, toString(msg));
+		}
 	}
 
 	@Kroll.method
 	public void error(Object msg) {
-		Log.e(LCAT, toString(msg));
+		if (this.logLevel <= ERROR) {
+			Log.e(LCAT, toString(msg));
+		}
 	}
 
 	@Kroll.method
 	public void trace(Object msg) {
-		Log.d(LCAT, toString(msg));
+		if (this.logLevel <= TRACE) {
+			Log.d(LCAT, toString(msg));
+		}
 	}
 
 	@Kroll.method
 	public void notice(Object msg) {
-		Log.i(LCAT, toString(msg));
+		if (this.logLevel <= INFO) {
+			Log.i(LCAT, toString(msg));
+		}
 	}
 
 	@Kroll.method
 	public void critical(Object msg) {
-		Log.e(LCAT, toString(msg));
+		if (this.logLevel <= CRITICAL) {
+			Log.e(LCAT, toString(msg));
+		}
 	}
 
 	@Kroll.method
@@ -107,25 +129,27 @@ public class APIModule extends KrollModule
 
 	public void internalLog(int severity, String msg)
 	{
-		if (severity == TRACE)
-		{
-			Log.v(LCAT,msg);
-		}
-		else if (severity < INFO)
-		{
-			Log.d(LCAT,msg);
-		}
-		else if (severity < WARN)
-		{
-			Log.i(LCAT,msg);
-		}
-		else if (severity == WARN)
-		{
-			Log.w(LCAT,msg);
-		}
-		else
-		{
-			Log.e(LCAT,msg);
+		if (this.logLevel <= severity) {
+			if (severity == TRACE)
+			{
+				Log.v(LCAT,msg);
+			}
+			else if (severity < INFO)
+			{
+				Log.d(LCAT,msg);
+			}
+			else if (severity < WARN)
+			{
+				Log.i(LCAT,msg);
+			}
+			else if (severity == WARN)
+			{
+				Log.w(LCAT,msg);
+			}
+			else
+			{
+				Log.e(LCAT,msg);
+			}
 		}
 	}
 }
