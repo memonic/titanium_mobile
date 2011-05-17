@@ -63,79 +63,51 @@ public class APIModule extends KrollModule
 	
 	@Kroll.method
 	public void debug(Object msg) {
-<<<<<<< HEAD
 		if (this.logLevel <= DEBUG) {
 			Log.d(LCAT, toString(msg));
 		}
-=======
-		logger.log(DEBUG, toString(msg));
->>>>>>> 1_7_0_RC1
 	}
 
 	@Kroll.method
 	public void info(Object msg) {
-<<<<<<< HEAD
 		if (this.logLevel <= INFO) {
 			Log.i(LCAT, toString(msg));
 		}
-=======
-		logger.log(INFO, toString(msg));
->>>>>>> 1_7_0_RC1
 	}
 
 	@Kroll.method
 	public void warn(Object msg) {
-<<<<<<< HEAD
 		if (this.logLevel <= WARN) {
 			Log.w(LCAT, toString(msg));
 		}
-=======
-		logger.log(WARN, toString(msg));
->>>>>>> 1_7_0_RC1
 	}
 
 	@Kroll.method
 	public void error(Object msg) {
-<<<<<<< HEAD
 		if (this.logLevel <= ERROR) {
 			Log.e(LCAT, toString(msg));
 		}
-=======
-		logger.log(ERROR, toString(msg));
->>>>>>> 1_7_0_RC1
 	}
 
 	@Kroll.method
 	public void trace(Object msg) {
-<<<<<<< HEAD
 		if (this.logLevel <= TRACE) {
 			Log.d(LCAT, toString(msg));
 		}
-=======
-		logger.log(TRACE, toString(msg));
->>>>>>> 1_7_0_RC1
 	}
 
 	@Kroll.method
 	public void notice(Object msg) {
-<<<<<<< HEAD
 		if (this.logLevel <= INFO) {
 			Log.i(LCAT, toString(msg));
 		}
-=======
-		logger.log(NOTICE, toString(msg));
->>>>>>> 1_7_0_RC1
 	}
 
 	@Kroll.method
 	public void critical(Object msg) {
-<<<<<<< HEAD
 		if (this.logLevel <= CRITICAL) {
 			Log.e(LCAT, toString(msg));
 		}
-=======
-		logger.log(CRITICAL, toString(msg));
->>>>>>> 1_7_0_RC1
 	}
 
 	@Kroll.method
