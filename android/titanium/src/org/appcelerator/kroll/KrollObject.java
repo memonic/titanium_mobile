@@ -6,6 +6,9 @@
  */
 package org.appcelerator.kroll;
 
+import java.util.ArrayList;
+import java.util.Set;
+
 import org.appcelerator.titanium.TiContext;
 import org.mozilla.javascript.Context;
 import org.mozilla.javascript.Function;
@@ -26,6 +29,34 @@ public class KrollObject extends ScriptableObject implements Function
 	public String getClassName()
 	{
 		return "Ti."+proxy.getAPIName() + (proxy instanceof KrollModule ? "Module":"");
+	}
+
+	@Override
+	public Object[] getIds()
+	{
+		// returns public proxy and readable binding properties
+		ArrayList<Object> ids = new ArrayList<Object>();
+		ids.addAll(proxy.getProperties().keySet());
+		for (String name : proxy.getBinding().bindings.keySet()) {
+			Object binding = proxy.getBinding().bindings.get(name);
+			if (binding instanceof KrollProperty) {
+				KrollProperty property = (KrollProperty) binding;
+				if (property.supportsGet(name)) {
+					ids.add(name);
+				}
+			}
+		}
+		return ids.toArray();
+	}
+
+	@Override
+	public Object[] getAllIds()
+	{
+		// returns proxy and all binding properties/methods
+		ArrayList<Object> ids = new ArrayList<Object>();
+		ids.addAll(proxy.getProperties().keySet());
+		ids.addAll(proxy.getBinding().bindings.keySet());
+		return ids.toArray();
 	}
 
 	@Override
@@ -54,8 +85,7 @@ public class KrollObject extends ScriptableObject implements Function
 	@Override
 	public Object get(int index, Scriptable start)
 	{
-		// TODO: implement special array index getters in binding
-		return super.get(index, start);
+		return proxy.get(start, index);
 	}
 
 	@Override
@@ -84,15 +114,13 @@ public class KrollObject extends ScriptableObject implements Function
 	@Override
 	public void put(int index, Scriptable start, Object value)
 	{
-		// TODO: implement special array index setters in binding
-		super.put(index, start, value);
+		proxy.set(start, index, value);
 	}
 
 	@Override
 	public boolean has(int index, Scriptable start)
 	{
-		// TODO: implement special array "has" in binding
-		return super.has(index, start);
+		return proxy.has(start, index);
 	}
 
 	@Override

@@ -3,7 +3,7 @@
 # zip up the titanium mobile SDKs into suitable distribution formats
 #
 import os, types, glob, shutil, sys, platform
-import zipfile, datetime, subprocess
+import zipfile, datetime, subprocess, tempfile, time
 
 if platform.system() == 'Darwin':
 	import importresolver
@@ -11,6 +11,7 @@ if platform.system() == 'Darwin':
 cur_dir = os.path.abspath(os.path.dirname(sys._getframe(0).f_code.co_filename))
 top_dir = os.path.abspath(os.path.join(os.path.dirname(sys._getframe(0).f_code.co_filename),'..'))
 template_dir = os.path.join(top_dir,'support')
+doc_dir = os.path.abspath(os.path.join(top_dir, 'apidoc'))
 all_dir = os.path.abspath(os.path.join(template_dir,'all'))
 android_dir = os.path.abspath(os.path.join(template_dir,'android'))
 iphone_dir = os.path.abspath(os.path.join(template_dir,'iphone'))
@@ -33,6 +34,22 @@ def ignore(file):
 		if file == f:
 			return True
 	 return False
+def generate_jsca():
+	 process_args = ['python', os.path.join(doc_dir, 'docgen.py'), '-f', 'jsca']
+	 jsca_temp_file = tempfile.TemporaryFile()
+	 try:
+		 process = subprocess.Popen(process_args, stdout=jsca_temp_file, stderr=subprocess.PIPE)
+		 process_return_code = process.wait()
+		 if process_return_code != 0:
+			 err_output = process.stderr.read()
+			 print >> sys.stderr, "Failed to generate JSCA JSON.  Output:"
+			 print >> sys.stderr, err_output
+			 sys.exit(1)
+		 jsca_temp_file.seek(0)
+		 jsca_json = jsca_temp_file.read()
+		 return jsca_json
+	 finally:
+		 jsca_temp_file.close()
 
 def zip_dir(zf,dir,basepath,subs=None,cb=None):
 	for root, dirs, files in os.walk(dir):
@@ -97,6 +114,11 @@ def zip_android(zf,basepath):
 	for android_module_jar in android_module_jars:
 		 jarname = os.path.split(android_module_jar)[1]
 		 zf.write(android_module_jar, '%s/android/modules/%s' % (basepath, jarname))
+
+	android_module_res_zips = glob.glob(os.path.join(android_dist_dir, 'titanium-*.res.zip'))
+	for android_module_res_zip in android_module_res_zips:
+		zipname = os.path.split(android_module_res_zip)[1]
+		zf.write(android_module_res_zip, '%s/android/modules/%s' % (basepath, zipname))
 	
 def resolve_source_imports(platform):
 	sys.path.append(iphone_dir)
@@ -108,7 +130,7 @@ def make_symbol(fn):
 		return fn[2:]
 	return fn
 
-def zip_iphone_ipad(zf,basepath,platform,version):
+def zip_iphone_ipad(zf,basepath,platform,version,version_tag):
 	  
 #	zf.writestr('%s/iphone/imports.json'%basepath,resolve_source_imports(platform))
 	
@@ -153,6 +175,12 @@ def zip_iphone_ipad(zf,basepath,platform,version):
 		if not os.path.exists(os.path.join(ticore_lib,'libtiverify.a')):
 			print "[ERROR] missing libtiverify.a!  make sure you checkout iphone/lib or edit your iphone/.gitignore and remove the lib entry"
 			sys.exit(1)
+
+	if not os.path.exists(os.path.join(ticore_lib,'libti_ios_debugger.a')):
+		os.system("git checkout iphone/lib")
+		if not os.path.exists(os.path.join(ticore_lib,'libti_ios_debugger.a')):
+			print "[ERROR] missing libti_ios_debugger.a!  make sure you checkout iphone/lib or edit your iphone/.gitignore and remove the lib entry"
+			sys.exit(1)
 		
 	if not os.path.exists(os.path.join(ticore_lib,'libTiCore.a')):
 		print "[ERROR] missing libTiCore.a!"
@@ -160,6 +188,7 @@ def zip_iphone_ipad(zf,basepath,platform,version):
 	
 	zf.write(os.path.join(ticore_lib,'libTiCore.a'),'%s/%s/libTiCore.a'%(basepath,platform))
 	zf.write(os.path.join(ticore_lib,'libtiverify.a'),'%s/%s/libtiverify.a'%(basepath,platform))
+	zf.write(os.path.join(ticore_lib,'libti_ios_debugger.a'),'%s/%s/libti_ios_debugger.a'%(basepath,platform))
 	
 	zip_dir(zf,osx_dir,basepath)
 	
@@ -171,16 +200,16 @@ def zip_iphone_ipad(zf,basepath,platform,version):
 				module_name = f.replace('Module','').lower()
 				zip_dir(zf,module_images,'%s/%s/modules/%s/images' % (basepath,platform,module_name))
 	
-def create_platform_zip(platform,dist_dir,osname,version):
+def create_platform_zip(platform,dist_dir,osname,version,version_tag):
 	if not os.path.exists(dist_dir):
 		os.makedirs(dist_dir)
-	basepath = '%s/%s/%s' % (platform,osname,version)
-	sdkzip = os.path.join(dist_dir,'%s-%s-%s.zip' % (platform,version,osname))
+	basepath = '%s/%s/%s' % (platform,osname,version_tag)
+	sdkzip = os.path.join(dist_dir,'%s-%s-%s.zip' % (platform,version_tag,osname))
 	zf = zipfile.ZipFile(sdkzip, 'w', zipfile.ZIP_DEFLATED)
 	return (zf,basepath)
 
-def zip_mobilesdk(dist_dir,osname,version,android,iphone,ipad):
-	zf, basepath = create_platform_zip('mobilesdk',dist_dir,osname,version)
+def zip_mobilesdk(dist_dir,osname,version,android,iphone,ipad,version_tag):
+	zf, basepath = create_platform_zip('mobilesdk',dist_dir,osname,version,version_tag)
 
 	version_txt = """version=%s
 timestamp=%s
@@ -188,29 +217,35 @@ githash=%s
 """ % (version,ts,githash)
 
 	zf.writestr('%s/version.txt' % basepath,version_txt)
+	jsca = generate_jsca()
+	zf.writestr('%s/api.jsca' % basepath, jsca)
 	
 	zip_dir(zf,all_dir,basepath)
 	zip_dir(zf,template_dir,basepath)
 	if android: zip_android(zf,basepath)
-	if (iphone or ipad) and osname == "osx": zip_iphone_ipad(zf,basepath,'iphone',version)
+	if (iphone or ipad) and osname == "osx": zip_iphone_ipad(zf,basepath,'iphone',version,version_tag)
 	if osname == 'win32':
 		zip_dir(zf, win32_dir, basepath)
 	
 	zf.close()
 				
-def zip_it(dist_dir,osname,version,android,iphone,ipad):
-	zip_mobilesdk(dist_dir,osname,version,android,iphone,ipad)
+def zip_it(dist_dir,osname,version,android,iphone,ipad,version_tag):
+	zip_mobilesdk(dist_dir,osname,version,android,iphone,ipad,version_tag)
 
 class Packager(object):
 	def __init__(self):
 		self.os_names = { "Windows":"win32", "Linux":"linux", "Darwin":"osx" }
 	 
-	def build(self,dist_dir,version,android=True,iphone=True,ipad=True):
-		zip_it(dist_dir,self.os_names[platform.system()],version,android,iphone,ipad)
+	def build(self,dist_dir,version,android=True,iphone=True,ipad=True,version_tag=None):
+		if version_tag == None:
+			version_tag = version
+		zip_it(dist_dir,self.os_names[platform.system()],version,android,iphone,ipad,version_tag)
 
-	def build_all_platforms(self,dist_dir,version,android=True,iphone=True,ipad=True):
+	def build_all_platforms(self,dist_dir,version,android=True,iphone=True,ipad=True,version_tag=None):
+		if version_tag == None:
+			version_tag = version
 		for os in self.os_names.values():
-			zip_it(dist_dir,os,version,android,iphone,ipad)
+			zip_it(dist_dir,os,version,android,iphone,ipad,version_tag)
 		
 if __name__ == '__main__':
 	Packager().build(os.path.abspath('../dist'), "1.1.0")

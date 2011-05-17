@@ -9,15 +9,14 @@ package ti.modules.titanium.ui;
 import org.appcelerator.kroll.KrollInvocation;
 import org.appcelerator.kroll.KrollModule;
 import org.appcelerator.kroll.annotations.Kroll;
-import org.appcelerator.titanium.util.Log;
 import org.appcelerator.titanium.TiBaseActivity;
 import org.appcelerator.titanium.TiContext;
+import org.appcelerator.titanium.util.Log;
 import org.appcelerator.titanium.util.TiConvert;
 import org.appcelerator.titanium.util.TiUIHelper;
 import org.appcelerator.titanium.view.TiDrawableReference;
 
 import android.app.Activity;
-import android.content.pm.ActivityInfo;
 import android.content.res.Resources;
 import android.graphics.drawable.ColorDrawable;
 import android.graphics.drawable.Drawable;
@@ -136,28 +135,13 @@ public class UIModule extends KrollModule
 	@Kroll.setProperty(runOnUiThread=true) @Kroll.method(runOnUiThread=true)
 	public void setOrientation(KrollInvocation invocation, int orientation)
 	{
-		int requestedOrientation = ActivityInfo.SCREEN_ORIENTATION_UNSPECIFIED;
-		switch (orientation) {
-			case LANDSCAPE_LEFT :
-			case LANDSCAPE_RIGHT :
-				requestedOrientation = ActivityInfo.SCREEN_ORIENTATION_LANDSCAPE;
-				break;
-			case PORTRAIT :
-			case UPSIDE_PORTRAIT :
-				requestedOrientation = ActivityInfo.SCREEN_ORIENTATION_PORTRAIT;
-				break;
-		}
-		
 		Activity activity = invocation.getTiContext().getActivity();
 		if (activity != null) {
 			if (activity instanceof TiBaseActivity) {
-				((TiBaseActivity)activity).overrideOrientation(requestedOrientation);
+				((TiBaseActivity)activity).requestOrientation(orientation);
 			} else {
-				activity.setRequestedOrientation(requestedOrientation);
+				activity.setRequestedOrientation(TiUIHelper.convertTiToActivityOrientation(orientation));
 			}
 		}
-		// null out the value so a call to set will result in the orientation being set.
-		setProperty("orientation", null);
-		//internalSetDynamicValue("orientation", null, false);
 	}
 }

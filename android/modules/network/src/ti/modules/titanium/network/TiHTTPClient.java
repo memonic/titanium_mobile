@@ -72,6 +72,7 @@ import org.appcelerator.kroll.KrollDict;
 import org.appcelerator.kroll.KrollProxy;
 import org.appcelerator.titanium.TiApplication;
 import org.appcelerator.titanium.TiBlob;
+import org.appcelerator.titanium.TiFileProxy;
 import org.appcelerator.titanium.io.TiBaseFile;
 import org.appcelerator.titanium.io.TiFile;
 import org.appcelerator.titanium.kroll.KrollCallback;
@@ -435,13 +436,6 @@ public class TiHTTPClient
 		if (client == null) {
 			SchemeRegistry registry = new SchemeRegistry();
 			registry.register(new Scheme("http", PlainSocketFactory.getSocketFactory(), 80));
-			SocketFactory sslFactory;
-			if (validatesSecureCertificate()) {
-				sslFactory = SSLSocketFactory.getSocketFactory();
-			} else {
-				sslFactory = new NonValidatingSSLSocketFactory();
-			}
-			registry.register(new Scheme("https", sslFactory, 443));
 
 			HttpParams params = new BasicHttpParams();
 			ConnManagerParams.setMaxTotalConnections(params, 200);
@@ -861,17 +855,30 @@ public class TiHTTPClient
 				// first time through check if we need multipart for POST
 				for (String key : data.keySet()) {
 					Object value = data.get(key);
-					if (value instanceof TiBaseFile || value instanceof TiBlob) {
-						needMultipart = true;
-						break;
+
+					if(value != null) {
+						// if the value is a proxy, we need to get the actual file object
+						if (value instanceof TiFileProxy) {
+							value = ((TiFileProxy) value).getBaseFile();
+						}
+
+						if (value instanceof TiBaseFile || value instanceof TiBlob) {
+							needMultipart = true;
+							break;
+						}
 					}
 				}
-				
+
 				boolean queryStringAltered = false;
 				for (String key : data.keySet()) {
 					Object value = data.get(key);
 
-					if (isPostOrPut) {
+					if (isPostOrPut && (value != null)) {
+						// if the value is a proxy, we need to get the actual file object
+						if (value instanceof TiFileProxy) {
+							value = ((TiFileProxy) value).getBaseFile();
+						}
+
 						if (value instanceof TiBaseFile || value instanceof TiBlob) {
 							totalLength += addTitaniumFileAsPostData(key, value);
 						} else {
@@ -929,6 +936,15 @@ public class TiHTTPClient
 				}
 				 */
 				handler = new LocalResponseHandler(TiHTTPClient.this);
+
+				// check this with every request since technically this can be changed per request
+				SocketFactory sslFactory;
+				if (validatesSecureCertificate()) {
+					sslFactory = SSLSocketFactory.getSocketFactory();
+				} else {
+					sslFactory = new NonValidatingSSLSocketFactory();
+				}
+				client.getConnectionManager().getSchemeRegistry().register(new Scheme("https", sslFactory, 443));
 
 				if (credentials != null) {
 					client.getCredentialsProvider().setCredentials (new AuthScope(uri.getHost(), -1), credentials);

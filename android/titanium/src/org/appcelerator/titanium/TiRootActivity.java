@@ -34,9 +34,6 @@ public class TiRootActivity extends TiLaunchActivity
 		Log.checkpoint(LCAT, "checkpoint, on root activity create, savedInstanceState: " + savedInstanceState);
 		TiApplication app = getTiApp();
 		app.setRootActivity(this);
-
-		setFullscreen(app.getAppInfo().isFullscreen());
-		setNavBarHidden(app.getAppInfo().isNavBarHidden());
 		super.onCreate(savedInstanceState);
 	}
 
@@ -80,6 +77,7 @@ public class TiRootActivity extends TiLaunchActivity
 			}
 			tiContext.release();
 		}
+		TiFastDev.onDestroy();
 	}
 
 	public TiContext getTiContext()

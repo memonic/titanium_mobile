@@ -25,6 +25,10 @@ import org.appcelerator.titanium.TiBlob;
 import org.appcelerator.titanium.TiC;
 import org.appcelerator.titanium.TiContext;
 import org.appcelerator.titanium.TiDimension;
+import org.appcelerator.titanium.TiFastDev;
+import org.appcelerator.titanium.TiMessageQueue;
+import org.appcelerator.titanium.io.TiBaseFile;
+import org.appcelerator.titanium.io.TiFileFactory;
 import org.appcelerator.titanium.view.TiBackgroundDrawable;
 import org.appcelerator.titanium.view.TiUIView;
 
@@ -48,10 +52,14 @@ import android.graphics.ColorMatrixColorFilter;
 import android.graphics.Paint;
 import android.graphics.Rect;
 import android.graphics.Typeface;
+import android.graphics.drawable.BitmapDrawable;
 import android.graphics.drawable.ColorDrawable;
 import android.graphics.drawable.Drawable;
 import android.graphics.drawable.StateListDrawable;
+import android.os.AsyncTask;
 import android.os.Build;
+import android.os.Handler;
+import android.os.Looper;
 import android.os.Process;
 import android.util.TypedValue;
 import android.view.Gravity;
@@ -126,7 +134,6 @@ public class TiUIHelper
 					// Do nothing.
 				}};
 		}
-		
 		new AlertDialog.Builder(context).setTitle(title).setMessage(message)
 			.setPositiveButton(android.R.string.ok, listener)
 			.setCancelable(false).create().show();
@@ -656,7 +663,7 @@ public class TiUIHelper
 		}
 		
 		try {
-			return TiRHelper.getResource("drawable." + key);
+			return TiRHelper.getResource("drawable." + key, false);
 		} catch (TiRHelper.ResourceNotFoundException e) {
 			return 0;
 		}
@@ -686,9 +693,29 @@ public class TiUIHelper
 		}
 		return bitmap;
 	}
-	
+
+	public static Drawable loadFastDevDrawable(TiContext context, String url)
+	{
+		try {
+			TiBaseFile tbf = TiFileFactory.createTitaniumFile(context, new String[] { url }, false);
+			InputStream stream = tbf.getInputStream();
+			Drawable d = BitmapDrawable.createFromStream(stream, url);
+			stream.close();
+			return d;
+		} catch (IOException e) {
+			Log.w(LCAT, e.getMessage(), e);
+		}
+		return null;
+	}
+
 	public static Drawable getResourceDrawable(TiContext context, String url)
 	{
+		if (TiFastDev.isFastDevEnabled()) {
+			Drawable d = loadFastDevDrawable(context, url);
+			if (d != null) {
+				return d;
+			}
+		}
 		int id = getResourceId(url);
 		if (id == 0) {
 			return null;
@@ -790,8 +817,20 @@ public class TiUIHelper
 			}
 		}
 	}
-	
-	public static int convertToAndroidOrientation(int orientation) {
+
+	public static int convertConfigToActivityOrientation(int orientation)
+	{
+		switch(orientation) {
+			case Configuration.ORIENTATION_PORTRAIT:
+				return ActivityInfo.SCREEN_ORIENTATION_PORTRAIT;
+			case Configuration.ORIENTATION_LANDSCAPE:
+				return ActivityInfo.SCREEN_ORIENTATION_LANDSCAPE;
+			default:
+				return -1;
+		}
+	}
+
+	public static int convertTiToActivityOrientation(int orientation) {
 		switch (orientation) {
 			case LANDSCAPE_LEFT :
 			case LANDSCAPE_RIGHT :
@@ -809,9 +848,18 @@ public class TiUIHelper
 			case Configuration.ORIENTATION_LANDSCAPE:
 			case ActivityInfo.SCREEN_ORIENTATION_LANDSCAPE:
 				return LANDSCAPE_LEFT;
-			case Configuration.ORIENTATION_PORTRAIT:
+
 			// == case ActivityInfo.SCREEN_ORIENTATION_PORTRAIT:
+			case Configuration.ORIENTATION_PORTRAIT:
 				return PORTRAIT;
+
+			// TODO ActivityInfo.SCREEN_ORIENTATION_REVERSE_LANDSCAPE is not available in sdk 7
+			case 8:
+				return LANDSCAPE_RIGHT;
+
+			// TODO ActivityInfo.SCREEN_ORIENTATION_REVERSE_LANDSCAPE is not available in sdk 7
+			case 9:
+				return UPSIDE_PORTRAIT;
 		}
 		return UNKNOWN;
 	}
@@ -832,5 +880,45 @@ public class TiUIHelper
 			return PORTRAIT;
 		}
 		return UNKNOWN;
+	}
+
+	/**
+	 * Run the Runnable "delayed" by using an AsyncTask to first require a new
+	 * thread and only then, in onPostExecute, run the Runnable on the UI thread.
+	 * @param runnable Runnable to run on UI thread.
+	 */
+	public static void runUiDelayed(final Runnable runnable)
+	{
+		(new AsyncTask<Void, Void, Void>()
+		{
+			@Override
+			protected Void doInBackground(Void... arg0)
+			{
+				return null;
+			}
+			/**
+			 * Always invoked on UI thread.
+			 */
+			@Override
+			protected void onPostExecute(Void result)
+			{
+				Handler handler = new Handler(Looper.getMainLooper());
+				handler.post(runnable);
+			}
+		}).execute();
+	}
+
+	/**
+	 * If there is a block on the UI message queue, run the Runnable "delayed".
+	 * @param runnable Runnable to run on UI thread.
+	 */
+	public static void runUiDelayedIfBlock(final Runnable runnable)
+	{
+		if (TiMessageQueue.getMainMessageQueue().isBlocking()) {
+			runUiDelayed(runnable);
+		} else {
+			Handler handler = new Handler(Looper.getMainLooper());
+			handler.post(runnable);
+		}
 	}
 }

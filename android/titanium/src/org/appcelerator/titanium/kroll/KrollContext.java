@@ -13,6 +13,7 @@ import java.io.InputStreamReader;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.atomic.AtomicInteger;
 
+import org.appcelerator.kroll.KrollEvaluator;
 import org.appcelerator.titanium.TiApplication;
 import org.appcelerator.titanium.TiC;
 import org.appcelerator.titanium.TiContext;
@@ -43,29 +44,35 @@ public class KrollContext implements Handler.Callback
 	private static final int MSG_EVAL_STRING = 1000;
 	private static final int MSG_EVAL_FILE = 1001;
 
-	private static AtomicInteger instanceCounter;
-
-	private static final String APP_SCHEME= "app://";
-	private static final String FILE_WITH_ASSET = "file:///android_asset/Resources/";
 	private static final String STRING_SOURCE = "<anonymous>";
 
 	public static final String CONTEXT_KEY = "krollContext";
 
+	private static AtomicInteger instanceCounter;
+	private static KrollEvaluator defaultEvaluator = new DefaultEvaluator();
+	private static KrollEvaluator evaluator = defaultEvaluator;
+	private static KrollThreadListener threadListener;
+
 	private KrollHandlerThread thread;
 	private TiContext tiContext;
 	private ScriptableObject jsScope;
+	private String sourceUrl;
+	private int krollThreadId;
 
 	private CountDownLatch initialized;
 	private TiMessageQueue messageQueue;
 	private boolean useOptimization;
 
-	protected KrollContext(TiContext tiContext, String label)
+	protected KrollContext(TiContext tiContext, String sourceUrl)
 	{
 		this.tiContext = tiContext;
+		this.sourceUrl = sourceUrl;
+		this.krollThreadId = getInstanceCounter().incrementAndGet();
+
 		StringBuilder threadName= new StringBuilder();
-		threadName.append("kroll$").append(getInstanceCounter().incrementAndGet());
-		if (label != null) {
-			threadName.append(": ").append(label);
+		threadName.append("kroll$").append(krollThreadId);
+		if (sourceUrl != null) {
+			threadName.append(": ").append(sourceUrl);
 		}
 		// allow a configurable stack size to avoid StackOverflowErrors in some larger apps
 		thread = new KrollHandlerThread(
@@ -84,10 +91,91 @@ public class KrollContext implements Handler.Callback
 		requireInitialized();
 	}
 
+	public static final class DefaultEvaluator implements KrollEvaluator
+	{
+		@Override
+		public Object evaluateFile(Context context, Scriptable scope,
+			TiBaseFile file, String filename, int lineNo, Object securityDomain)
+		{
+			BufferedReader br = null;
+			Object result = Scriptable.NOT_FOUND;
+			try {
+				br = new BufferedReader(new InputStreamReader(file.getInputStream()), 4000);
+				Log.d(LCAT, "Running evaluated script: " + filename);
+				result = context.evaluateReader(scope, br, filename, 1, null);
+			} catch (IOException e) {
+				Log.e(LCAT, "IOException reading file: " + filename, e);
+				Context.throwAsScriptRuntimeEx(e);
+			} finally {
+				if (br != null) {
+					try {
+						br.close();
+					} catch (IOException e) {
+						// Ignore
+					}
+				}
+			}
+			return result;
+		}
+
+		@Override
+		public Object evaluateString(Context context, Scriptable scope,
+			String src, String sourceName, int lineNo, Object securityDomain)
+		{
+			return context.evaluateString(scope, src, sourceName, lineNo, securityDomain);
+		}
+
+		@Override
+		public void handleEcmaError(EcmaError error)
+		{
+			Log.e(LCAT, "ECMA Error evaluating source: " + error.getMessage(), error);
+			Context.reportRuntimeError(error.getMessage(), error.sourceName(),
+				error.lineNumber(), error.lineSource(), error.columnNumber());
+		}
+
+		@Override
+		public void handleEvaluatorException(EvaluatorException ex)
+		{
+			Log.e(LCAT, "Error evaluating source: " + ex.getMessage(), ex);
+			Context.reportRuntimeError(ex.getMessage(), ex.sourceName(),
+				ex.lineNumber(), ex.lineSource(), ex.columnNumber());
+		}
+
+		@Override
+		public void handleException(Exception ex)
+		{
+			Log.e(LCAT, "Error: " + ex.getMessage(), ex);
+			Context.throwAsScriptRuntimeEx(ex);
+		}
+	}
+
+	public static KrollEvaluator getDefaultKrollEvaluator()
+	{
+		return defaultEvaluator;
+	}
+
+	public static KrollEvaluator getKrollEvaluator()
+	{
+		return evaluator;
+	}
+
+	public static void setKrollEvaluator(KrollEvaluator e)
+	{
+		evaluator = e;
+	}
+
+	public static void setThreadListener(KrollThreadListener l)
+	{
+		threadListener = l;
+	}
+
 	protected void initContext()
 	{
 		if (DBG) {
 			Log.d(LCAT, "Context Thread: " + Thread.currentThread().getName());
+		}
+		if (threadListener != null) {
+			threadListener.threadStarted(thread);
 		}
 		messageQueue = TiMessageQueue.getMessageQueue();
 		messageQueue.setCallback(this);
@@ -103,6 +191,13 @@ public class KrollContext implements Handler.Callback
 			initialized.countDown();
 		} finally {
 			exit();
+		}
+	}
+
+	protected void threadEnded()
+	{
+		if (threadListener != null) {
+			threadListener.threadEnded(thread);
 		}
 	}
 
@@ -140,9 +235,24 @@ public class KrollContext implements Handler.Callback
 		return thread.getId() == Thread.currentThread().getId();
 	}
 
+	public KrollHandlerThread getThread()
+	{
+		return thread;
+	}
+
 	public TiContext getTiContext()
 	{
 		return tiContext;
+	}
+
+	public String getSourceUrl()
+	{
+		return sourceUrl;
+	}
+
+	public int getKrollThreadId()
+	{
+		return krollThreadId;
 	}
 
 	public Scriptable getScope()
@@ -169,29 +279,18 @@ public class KrollContext implements Handler.Callback
 
 	protected Object runCompiledScript(String filename)
 	{
-		if (filename.contains("://")) {
-			if (filename.startsWith(APP_SCHEME)) {
-				filename = filename.substring(APP_SCHEME.length());
-
-				// In some cases we might have a leading slash after the app:// URL
-				// normalize by trimming the leading slash
-				if (filename.length() > 0 && filename.charAt(0) == '/') {
-					filename = filename.substring(1);
-				}
-			} else if (filename.startsWith(FILE_WITH_ASSET)) {
-				filename = filename.substring(FILE_WITH_ASSET.length());
-			} else {
-				// we can only handle pre-compiled app:// and file:///android_asset/Resources/ scripts here
-				return evaluateScript(filename);
-			}
+		String relativePath = TiFileHelper2.getResourceRelativePath(filename);
+		if (relativePath == null) {
+			// we can only handle pre-compiled app:// and file:///android_asset/Resources/ scripts here
+			return evaluateScript(filename);
 		}
 		
 		Context context = enter(true);
 		try {
-			Log.d(LCAT, "Running pre-compiled script: "+filename);
-			return TiScriptRunner.getInstance().runScript(context, jsScope, filename);
+			Log.d(LCAT, "Running pre-compiled script: " + relativePath);
+			return TiScriptRunner.getInstance().runScript(context, jsScope, relativePath);
 		} catch (ClassNotFoundException e) {
-			Log.e(LCAT, "Couldn't find pre-compiled class for script: " + filename, e);
+			Log.e(LCAT, "Couldn't find pre-compiled class for script: " + relativePath, e);
 		} finally {
 			exit();
 		}
@@ -202,26 +301,9 @@ public class KrollContext implements Handler.Callback
 	{
 		String[] parts = { filename };
 		TiBaseFile tbf = TiFileFactory.createTitaniumFile(tiContext, parts, false);
-		BufferedReader br = null;
-
+		
 		Context context = enter(false);
-		try {
-			br = new BufferedReader(new InputStreamReader(tbf.getInputStream()), 4000);
-			Log.d(LCAT, "Running evaluated script: " + filename);
-			return context.evaluateReader(jsScope, br, filename, 0, null);
-		} catch (IOException e) {
-			Log.e(LCAT, "IOException reading file: " + filename, e);
-			Context.throwAsScriptRuntimeEx(e);
-		} finally {
-			if (br != null) {
-				try {
-					br.close();
-				} catch (IOException e) {
-					// Ignore
-				}
-			}
-		}
-		return ScriptableObject.NOT_FOUND;
+		return evaluator.evaluateFile(context, jsScope, tbf, filename, 1, null);
 	}
 
 	public Object handleEvalFile(String filename)
@@ -236,14 +318,11 @@ public class KrollContext implements Handler.Callback
 				result = evaluateScript(filename);
 			}
 		} catch (EcmaError e) {
-			Log.e(LCAT, "ECMA Error evaluating source: " + e.getMessage(), e);
-			Context.reportRuntimeError(e.getMessage(), e.sourceName(), e.lineNumber(), e.lineSource(), e.columnNumber());
+			evaluator.handleEcmaError(e);
 		} catch (EvaluatorException e) {
-			Log.e(LCAT, "Error evaluating source: " + e.getMessage(), e);
-			Context.reportRuntimeError(e.getMessage(), e.sourceName(), e.lineNumber(), e.lineSource(), e.columnNumber());
+			evaluator.handleEvaluatorException(e);
 		} catch (Exception e) {
-			Log.e(LCAT, "Error: " + e.getMessage(), e);
-			Context.throwAsScriptRuntimeEx(e);
+			evaluator.handleException(e);
 		}
 
 		return result;
@@ -268,16 +347,13 @@ public class KrollContext implements Handler.Callback
 		Object result = null;
 		Context ctx = enter(false);
 		try {
-			result = ctx.evaluateString(jsScope, src, STRING_SOURCE, 0, null);
+			result = evaluator.evaluateString(ctx, jsScope, src, STRING_SOURCE, 1, null);
 		} catch (EcmaError e) {
-			Log.e(LCAT, "ECMA Error evaluating source: " + e.getMessage(), e);
-			Context.reportRuntimeError(e.getMessage(), e.sourceName(), e.lineNumber(), e.lineSource(), e.columnNumber());
+			evaluator.handleEcmaError(e);
 		} catch (EvaluatorException e) {
-			Log.e(LCAT, "Error evaluating source: " + e.getMessage(), e);
-			Context.reportRuntimeError(e.getMessage(), e.sourceName(), e.lineNumber(), e.lineSource(), e.columnNumber());
+			evaluator.handleEvaluatorException(e);
 		} catch (Exception e) {
-			Log.e(LCAT, "Error evaluating source: " + e.getMessage(), e);
-			Context.throwAsScriptRuntimeEx(e);
+			evaluator.handleException(e);
 		} finally {
 			exit();
 		}

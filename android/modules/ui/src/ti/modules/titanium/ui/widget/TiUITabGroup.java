@@ -13,7 +13,6 @@ import org.appcelerator.titanium.proxy.TiViewProxy;
 import org.appcelerator.titanium.util.Log;
 import org.appcelerator.titanium.util.TiConfig;
 import org.appcelerator.titanium.util.TiConvert;
-import org.appcelerator.titanium.view.TiCompositeLayout;
 import org.appcelerator.titanium.view.TiUIView;
 
 import ti.modules.titanium.ui.TabGroupProxy;
@@ -21,11 +20,7 @@ import ti.modules.titanium.ui.TabProxy;
 import ti.modules.titanium.ui.TiTabActivity;
 import android.graphics.drawable.ColorDrawable;
 import android.view.View;
-import android.view.ViewGroup.LayoutParams;
-import android.widget.FrameLayout;
-import android.widget.LinearLayout;
 import android.widget.TabHost;
-import android.widget.TabWidget;
 import android.widget.TabHost.OnTabChangeListener;
 import android.widget.TabHost.TabSpec;
 
@@ -36,8 +31,6 @@ public class TiUITabGroup extends TiUIView
 	private static final boolean DBG = TiConfig.LOGD;
 
 	private TabHost tabHost;
-	private TabWidget tabWidget;
-	private FrameLayout tabContent;
 	private boolean addingTab;
 
 	private String lastTabId;
@@ -46,27 +39,13 @@ public class TiUITabGroup extends TiUIView
 	public TiUITabGroup(TiViewProxy proxy, TiTabActivity activity)
 	{
 		super(proxy);
-		tabHost = new TabHost(activity);
+		tabHost = activity.getTabHost();
+		// Set to GONE to overcome a NullPointerException
+		// deep in Android code in pre api 8.  See Android issue
+		// 2772.
+		tabHost.setVisibility(View.GONE);
+		tabHost.clearAllTabs();
 		tabHost.setOnTabChangedListener(this);
-
-		tabWidget = new TabWidget(proxy.getContext());
-		tabWidget.setId(android.R.id.tabs); // Required by contract w/ host
-
-		tabContent = new FrameLayout(proxy.getContext()) {
-			@Override
-			protected void onMeasure(int widthMeasureSpec, int heightMeasureSpec)
-			{
-				tabContent.setPadding(0, tabWidget.getMeasuredHeight(), 0, 0);
-				super.onMeasure(widthMeasureSpec, heightMeasureSpec);
-			}
-		};
-		tabContent.setId(android.R.id.tabcontent);
-
-		tabHost.addView(tabWidget, new LinearLayout.LayoutParams(
-			LayoutParams.FILL_PARENT, LayoutParams.WRAP_CONTENT));
-		tabHost.addView(tabContent, new LinearLayout.LayoutParams(
-			LayoutParams.FILL_PARENT, LayoutParams.FILL_PARENT));
-		//tabHost.setup(proxy.getTiContext().getRootActivity().getLocalActivityManager());
 		tabHost.setup(activity.getLocalActivityManager());
 
 		if (proxy.hasProperty(TiC.PROPERTY_BACKGROUND_COLOR)) {
@@ -76,11 +55,6 @@ public class TiUITabGroup extends TiUIView
 		}
 
 		setNativeView(tabHost);
-		TiCompositeLayout.LayoutParams params = new TiCompositeLayout.LayoutParams();
-		params.autoFillsHeight = true;
-		params.autoFillsWidth = true;
-		activity.getLayout().addView(tabHost, params);
-
 		lastTabId = null;
 	}
 
@@ -94,6 +68,17 @@ public class TiUITabGroup extends TiUIView
 		addingTab = true;
 		tabHost.addTab(tab);
 		addingTab = false;
+		if (tabHost.getVisibility() == View.GONE) {
+			boolean visibilityPerProxy = true; // default
+			if (proxy.hasProperty(TiC.PROPERTY_VISIBLE)) {
+				visibilityPerProxy = TiConvert.toBoolean(proxy.getProperty(TiC.PROPERTY_VISIBLE));
+			}
+			if (visibilityPerProxy) {
+				tabHost.setVisibility(View.VISIBLE);
+			} else {
+				tabHost.setVisibility(View.INVISIBLE);
+			}
+		}
 	}
 
 	public void setActiveTab(int index)

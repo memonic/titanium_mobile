@@ -92,6 +92,11 @@ public class TiUIWebView extends TiUIView {
 	public void processProperties(KrollDict d) {
 		super.processProperties(d);
 
+		if (d.containsKey(TiC.PROPERTY_SCALES_PAGE_TO_FIT)) {
+			WebSettings settings = getWebView().getSettings();
+			settings.setLoadWithOverviewMode(TiConvert.toBoolean(d, TiC.PROPERTY_SCALES_PAGE_TO_FIT));
+		}
+
 		if (d.containsKey(TiC.PROPERTY_URL)) {
 			setUrl(TiConvert.toString(d, TiC.PROPERTY_URL));
 		} else if (d.containsKey(TiC.PROPERTY_HTML)) {
@@ -121,9 +126,13 @@ public class TiUIWebView extends TiUIView {
 			if (newValue instanceof TiBlob) {
 				setData((TiBlob)newValue);
 			}
+		} else if (TiC.PROPERTY_SCALES_PAGE_TO_FIT.equals(key)) {
+			WebSettings settings = getWebView().getSettings();
+			settings.setLoadWithOverviewMode(TiConvert.toBoolean(newValue));
 		} else {
 			super.propertyChanged(key, oldValue, newValue, proxy);
 		}
+
 		// If TiUIView's propertyChanged ended up making a TiBackgroundDrawable
 		// for the background, we must set the WebView background color to transparent
 		// in order to see any of it.
@@ -207,6 +216,12 @@ public class TiUIWebView extends TiUIView {
 		if (DBG) {
 			Log.d(LCAT, "WebView will load " + url + " directly without code injection.");
 		}
+		// iOS parity: for whatever reason, when a remote url is used, the iOS implementation
+		// explicitly sets the native webview's setScalesPageToFit to YES if the
+		// Ti scalesPageToFit property has _not_ been set.
+		if (!proxy.hasProperty(TiC.PROPERTY_SCALES_PAGE_TO_FIT)) {
+			getWebView().getSettings().setLoadWithOverviewMode(true);
+		}
 		getWebView().loadUrl(finalUrl);
 
 	}
@@ -263,11 +278,17 @@ public class TiUIWebView extends TiUIView {
 		// 			//alert('AFTER: ' + imgs[i].src);
 		// 		}
 
-		setHtml(html, "file:///android_asset/Resources/");
+		setHtml(html, TiC.URL_ANDROID_ASSET_RESOURCES);
 	}
 
 	private void setHtml(String html, String baseUrl)
 	{
+		// iOS parity: for whatever reason, when html is set directly, the iOS implementation
+		// explicitly sets the native webview's setScalesPageToFit to NO if the
+		// Ti scalesPageToFit property has _not_ been set.
+		if (!proxy.hasProperty(TiC.PROPERTY_SCALES_PAGE_TO_FIT)) {
+			getWebView().getSettings().setLoadWithOverviewMode(false);
+		}
 		if (html.contains(TiWebViewBinding.SCRIPT_INJECTION_ID)) {
 			// Our injection code is in there already, go ahead and show.
 			getWebView().loadDataWithBaseURL(baseUrl, html, "text/html", "utf-8", null);
@@ -293,6 +314,12 @@ public class TiUIWebView extends TiUIView {
 	public void setData(TiBlob blob)
 	{
 		String mimeType = "text/html";
+		// iOS parity: for whatever reason, in setData, the iOS implementation
+		// explicitly sets the native webview's setScalesPageToFit to YES if the
+		// Ti scalesPageToFit property has _not_ been set.
+		if (!proxy.hasProperty(TiC.PROPERTY_SCALES_PAGE_TO_FIT)) {
+			getWebView().getSettings().setLoadWithOverviewMode(true);
+		}
 		if (blob.getMimeType() != null) {
 			mimeType = blob.getMimeType();
 		}

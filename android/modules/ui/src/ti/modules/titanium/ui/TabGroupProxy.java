@@ -19,8 +19,8 @@ import org.appcelerator.titanium.util.AsyncResult;
 import org.appcelerator.titanium.util.Log;
 import org.appcelerator.titanium.util.TiConfig;
 import org.appcelerator.titanium.util.TiConvert;
-import org.appcelerator.titanium.util.TiFileHelper;
 import org.appcelerator.titanium.util.TiUIHelper;
+import org.appcelerator.titanium.view.TiDrawableReference;
 import org.appcelerator.titanium.view.TiUIView;
 
 import ti.modules.titanium.ui.widget.TiUITabGroup;
@@ -159,28 +159,20 @@ public class TabGroupProxy extends TiWindowProxy
 				Log.w(LCAT, "Could not add tab because tab activity no longer exists");
 			}
 		}
-		String title = (String) tab.getProperty(TiC.PROPERTY_TITLE);
-		String icon = (String) tab.getProperty(TiC.PROPERTY_ICON);
-		String tag = (String) tab.getProperty(TiC.PROPERTY_TAG);
-
-		if (title == null) {
-			title = "";
-		}
-		
+		Drawable icon = TiDrawableReference.fromObject(getTiContext(), tab.getProperty(TiC.PROPERTY_ICON)).getDrawable();
+		String tag = TiConvert.toString(tab.getProperty(TiC.PROPERTY_TAG));
+		String title = TiConvert.toString(tab.getProperty(TiC.PROPERTY_TITLE));
+		if (title == null) { title = ""; }
 		tab.setTabGroup(this);
 		final WindowProxy vp = (WindowProxy) tab.getProperty(TiC.PROPERTY_WINDOW);
 		vp.setTabGroupProxy(this);
 		vp.setTabProxy(tab);
-
 		if (tag != null && vp != null) {
 			TabSpec tspec = tg.newTab(tag);
 			if (icon == null) {
 				tspec.setIndicator(title);
 			} else {
-				String path = getTiContext().resolveUrl(null, icon);
-				TiFileHelper tfh = new TiFileHelper(getTiContext().getRootActivity());
-				Drawable d = tfh.loadDrawable(getTiContext(), path, false);
-				tspec.setIndicator(title, d);
+				tspec.setIndicator(title, icon);
 			}
 
 			Intent intent = new Intent(tta, TiActivity.class);
@@ -350,6 +342,9 @@ public class TabGroupProxy extends TiWindowProxy
 			if (props.containsKey(TiC.PROPERTY_NAV_BAR_HIDDEN)) {
 				intent.putExtra(TiC.PROPERTY_NAV_BAR_HIDDEN, TiConvert.toBoolean(props, TiC.PROPERTY_NAV_BAR_HIDDEN));
 			}
+			if (props.containsKey(TiC.PROPERTY_WINDOW_SOFT_INPUT_MODE)) {
+				intent.putExtra(TiC.PROPERTY_WINDOW_SOFT_INPUT_MODE, TiConvert.toInt(props, TiC.PROPERTY_WINDOW_SOFT_INPUT_MODE));
+			}
 		}
 
 		if (props != null && props.containsKey(TiC.PROPERTY_EXIT_ON_CLOSE)) {
@@ -380,7 +375,8 @@ public class TabGroupProxy extends TiWindowProxy
 				}
 			}
 		}
-		tabs.clear();
+		// Don't clear the tabs collection -- it contains proxies, not views
+		//tabs.clear();
 	}
 
 	@Override

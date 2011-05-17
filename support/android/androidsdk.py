@@ -5,12 +5,18 @@
 
 import os, sys, platform, glob, subprocess, types, re
 
+DEFAULT_API_LEVEL = 7
+
 android_api_levels = {
 	3: 'android-1.5',
 	4: 'android-1.6',
 	5: 'android-2.0',
 	6: 'android-2.0.1',
-	7: 'android-2.1'
+	7: 'android-2.1',
+	8: 'android-2.2',
+	9: 'android-2.3',
+	10: 'android-2.3.3',
+	11: 'android-3.0'
 }
 
 class Device:
@@ -36,7 +42,7 @@ class Device:
 		return self.offline
 
 class AndroidSDK:
-	def __init__(self, android_sdk, api_level):
+	def __init__(self, android_sdk, api_level=DEFAULT_API_LEVEL):
 		self.android_sdk = self.find_sdk(android_sdk)
 		if self.android_sdk is None:
 			raise Exception('No Android SDK directory found')
@@ -296,7 +302,7 @@ if __name__ == "__main__":
 	if len(sys.argv) < 2:
 		print "Usage: %s ANDROID_SDK [API]" % sys.argv[0]
 		print "  ANDROID_SDK is the default path to the Android SDK. Use '-' if there is no default path"
-		print "  API (optional) is an Android API version (i.e. 4, 5, 6, 7, 8). The default is 4."
+		print "  API (optional) is an Android API version (i.e. 4, 5, 6, 7, 8). The default is 7."
 		print ""
 		print "Prints the SDK directory, Android Platform directory, and Google APIs directory"
 		sys.exit(1)
@@ -305,7 +311,7 @@ if __name__ == "__main__":
 	if sdk_path == '-':
 		sdk_path = None
 
-	api_level = 4
+	api_level = DEFAULT_API_LEVEL
 	if len(sys.argv) > 2:
 		api_level = int(sys.argv[2])
 	try:

@@ -18,9 +18,12 @@ import java.util.Map;
 
 import org.appcelerator.kroll.KrollDict;
 import org.appcelerator.titanium.TiBlob;
+import org.appcelerator.titanium.TiC;
 import org.appcelerator.titanium.TiContext;
 import org.appcelerator.titanium.TiDimension;
+import org.appcelerator.titanium.TiFastDev;
 import org.appcelerator.titanium.io.TiBaseFile;
+import org.appcelerator.titanium.io.TiFileFactory;
 import org.appcelerator.titanium.util.Log;
 import org.appcelerator.titanium.util.TiBackgroundImageLoadTask;
 import org.appcelerator.titanium.util.TiConvert;
@@ -321,7 +324,26 @@ public class TiDrawableReference
 			TiConvert.toTiDimension(new Integer(destWidth), TiDimension.TYPE_WIDTH),
 			TiConvert.toTiDimension(new Integer(destHeight), TiDimension.TYPE_HEIGHT));
 	}
-	
+	/**
+	 * Gets the bitmap, scaled to a specific width, with the height matching the
+	 * original aspect ratio.
+	 * @param destWidth Width in pixels of resulting bitmap
+	 * @return Bitmap, or null if any problem getting it.  Check logcat if null.
+	 */
+	public Bitmap getBitmap(int destWidth)
+	{
+		int srcWidth, srcHeight, destHeight;
+		Bounds orig = peekBounds();
+		srcWidth = orig.width;
+		srcHeight = orig.height;
+		if (srcWidth <= 0 || srcHeight <= 0) {
+			Log.w(LCAT, "Bitmap bounds could not be determined.  If bitmap is loaded, it won't be scaled.");
+			return getBitmap(); // fallback
+		}
+		double aspectRatio = (double)srcWidth/(double)srcHeight;
+		destHeight = (int) ((double)destWidth / aspectRatio);
+		return getBitmap(destWidth, destHeight);
+	}
 	/**
 	 * Gets the bitmap, scaled to a width & height specified in TiDimension params.
 	 * @param destWidthDimension (null-ok) TiDimension specifying the desired width.  If .isUnitAuto()
@@ -336,7 +358,7 @@ public class TiDrawableReference
 	{
 		int srcWidth, srcHeight, destWidth, destHeight;
 
-		Bounds bounds = peakBounds();
+		Bounds bounds = peekBounds();
 		srcWidth = bounds.width;
 		srcHeight = bounds.height;
 		
@@ -438,7 +460,7 @@ public class TiDrawableReference
 	 * (height & width) so we can do some sampling and scaling.
 	 * @return Bounds object with .getWidth() and .getHeight() available on it.
 	 */
-	public Bounds peakBounds()
+	public Bounds peekBounds()
 	{
 		int hash = this.hashCode();
 		if (boundsCache.containsKey(hash)) {
@@ -490,7 +512,14 @@ public class TiDrawableReference
 		if (isTypeUrl() && url != null) {
 			if (context != null) {
 				try {
-					stream = getTiFileHelper().openInputStream(context.resolveUrl(null, url), false);
+					String resolved = context.resolveUrl(null, url);
+					if (resolved.startsWith(TiC.URL_ANDROID_ASSET_RESOURCES)
+						&& TiFastDev.isFastDevEnabled()) {
+						TiBaseFile tbf = TiFileFactory.createTitaniumFile(context, new String[] { resolved }, false);
+						stream = tbf.getInputStream();
+					} else {
+						stream = getTiFileHelper().openInputStream(resolved, false);
+					}
 				} catch (IOException e) {
 					Log.e(LCAT, "Problem opening stream with url " + url + ": " + e.getMessage(), e);
 				}
@@ -542,7 +571,7 @@ public class TiDrawableReference
 	 */
 	public int calcSampleSize(int destWidth, int destHeight)
 	{
-		Bounds bounds = peakBounds();
+		Bounds bounds = peekBounds();
 		return calcSampleSize(bounds.width, bounds.height, destWidth, destHeight);
 		
 	}
@@ -594,7 +623,7 @@ public class TiDrawableReference
 	 */
 	public int calcSampleSize(View parent, TiDimension destWidthDimension, TiDimension destHeightDimension) 
 	{
-		Bounds bounds = peakBounds();
+		Bounds bounds = peekBounds();
 		int srcWidth = bounds.width;
 		int srcHeight = bounds.height;
 		

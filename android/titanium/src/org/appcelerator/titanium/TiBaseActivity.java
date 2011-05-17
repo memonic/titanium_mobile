@@ -10,8 +10,8 @@ import java.lang.ref.WeakReference;
 
 import org.appcelerator.kroll.KrollDict;
 import org.appcelerator.titanium.proxy.ActivityProxy;
+import org.appcelerator.titanium.proxy.IntentProxy;
 import org.appcelerator.titanium.proxy.TiWindowProxy;
-import org.appcelerator.titanium.util.AsyncResult;
 import org.appcelerator.titanium.util.Log;
 import org.appcelerator.titanium.util.TiActivityResultHandler;
 import org.appcelerator.titanium.util.TiActivitySupport;
@@ -28,12 +28,12 @@ import org.appcelerator.titanium.view.TiCompositeLayout.LayoutArrangement;
 
 import android.app.Activity;
 import android.content.Intent;
-import android.content.pm.ActivityInfo;
 import android.content.res.Configuration;
 import android.os.Bundle;
 import android.os.Message;
 import android.os.Messenger;
 import android.os.RemoteException;
+import android.os.Build.VERSION;
 import android.view.KeyEvent;
 import android.view.Menu;
 import android.view.MenuItem;
@@ -58,7 +58,6 @@ public abstract class TiBaseActivity extends Activity
 	protected TiWeakList<ConfigurationChangedListener> configChangedListeners = new TiWeakList<ConfigurationChangedListener>();
 	protected OrientationEventListener orientationListener;
 	protected int orientationDegrees;
-	protected int orientationOverride = -1;
 	protected TiMenuSupport menuHelper;
 	protected TiMessageQueue messageQueue;
 	protected Messenger messenger;
@@ -80,6 +79,11 @@ public abstract class TiBaseActivity extends Activity
 		return (TiApplication) getApplication();
 	}
 
+	public TiWindowProxy getWindowProxy()
+	{
+		return this.window;
+	}
+
 	public void setWindowProxy(TiWindowProxy proxy)
 	{
 		this.window = proxy;
@@ -89,15 +93,14 @@ public abstract class TiBaseActivity extends Activity
 
 	public void updateOrientation()
 	{
-		if (window == null) return;
-		// This forces orientation so that it won't change unless it's allowed
-		// when using the "orientationModes" property
-		if (window.getOrientationModes().length > 0) {
-			int orientation = getResources().getConfiguration().orientation;
-			if (window.isOrientationMode(orientation)) {
-				setRequestedOrientation(orientation);
-			} else {
-				setRequestedOrientation(TiUIHelper.convertToAndroidOrientation(window.getOrientationModes()[0]));
+		if (window != null) {
+			if (window.getOrientationModes().length > 0) {
+				int currentOrientation = getResources().getConfiguration().orientation;
+				if (window.isOrientationMode(TiUIHelper.convertToTiOrientation(currentOrientation))) {
+					setRequestedOrientation(TiUIHelper.convertConfigToActivityOrientation(currentOrientation));
+				} else {
+					setRequestedOrientation(TiUIHelper.convertTiToActivityOrientation(window.getOrientationModes()[0]));
+				}
 			}
 		}
 	}
@@ -462,14 +465,6 @@ public abstract class TiBaseActivity extends Activity
 		return orientationDegrees;
 	}
 
-	public void overrideOrientation(int orientation)
-	{
-		// override the orientation until it's matched, then go back to detecting
-		// this matches iPhone's behavior (hoop -> jump)
-		orientationOverride = orientation;
-		setRequestedOrientation(orientation);
-	}
-
 	public void enableOrientationListener()
 	{
 		orientationListener.enable();
@@ -478,6 +473,14 @@ public abstract class TiBaseActivity extends Activity
 	public void disableOrientationListener()
 	{
 		orientationListener.disable();
+	}
+
+	// orientation must be Titanium orientation value
+	public void requestOrientation(int orientation)
+	{
+		if (window.isOrientationMode(orientation)) {
+			setRequestedOrientation(TiUIHelper.convertTiToActivityOrientation(orientation));
+		}
 	}
 
 	protected void onOrientationChanged(int degrees)
@@ -489,34 +492,28 @@ public abstract class TiBaseActivity extends Activity
 		if (degrees != OrientationEventListener.ORIENTATION_UNKNOWN) {
 			if (window != null) {
 				if (window.getOrientationModes().length > 0) {
-					int currentOrientation;
-					if (degrees >= 225 && degrees < 315) {
-						// disable "landscape left", there's no way to forcefully set it
-						//|| (degrees >= 45 && degrees < 135)) {
-						currentOrientation = ActivityInfo.SCREEN_ORIENTATION_LANDSCAPE;
-					} else {
-						currentOrientation = ActivityInfo.SCREEN_ORIENTATION_PORTRAIT;
+					int newOrientation = -1;
+
+					// is the degree valid to be used for shifting orientation?
+					if (degrees > 350 || degrees < 10) {
+						// set portrait
+						newOrientation = 1;
+					} else if ((degrees > 80 && degrees < 100) && VERSION.SDK_INT == 9) {
+						// set reverse landscape
+						// newOrientation = 8;
+					} else if ((degrees > 170 && degrees < 190) && VERSION.SDK_INT == 9) {
+						// set reverse portrait
+						// newOrientation = 9;
+					} else if (degrees > 260 && degrees < 280) {
+						// set landscape
+						newOrientation = 0;
 					}
-					if (window.isOrientationMode(currentOrientation)) {
-						// Orientation fits with allowed -- setting it
-						setRequestedOrientation(currentOrientation);
-						if (orientationOverride != -1) {
-							// And now that we're in an allowable orientation, we can clear the override.
-							orientationOverride = -1;
-						}
-					} else {
-						// The current orientation is not one of the allowable ones.  If it's also not
-						// the override orientation, need to set to one of the allowables.
-						if (currentOrientation == orientationOverride) {
-							setRequestedOrientation(currentOrientation);
-						} else {
-							// current orientation is neither allowable nor the override.  Set
-							// to first allowable.
-							setRequestedOrientation(TiUIHelper.convertToAndroidOrientation(window.getOrientationModes()[0]));
-							if (orientationOverride != -1) {
-								// And again we can clear the override since we're now in an allowable
-								orientationOverride = -1;
-							}
+
+					if (newOrientation != -1) {
+						// only set the orientation if it is not the current orientation
+						int currentOrientation = getResources().getConfiguration().orientation;
+						if (newOrientation != TiUIHelper.convertConfigToActivityOrientation(currentOrientation)) {
+							requestOrientation(TiUIHelper.convertToTiOrientation(newOrientation));
 						}
 					}
 				}
@@ -532,6 +529,22 @@ public abstract class TiBaseActivity extends Activity
 			if (listener.get() != null) {
 				listener.get().onConfigurationChanged(this, newConfig);
 			}
+		}
+	}
+
+	@Override
+	protected void onNewIntent(Intent intent) 
+	{
+		super.onNewIntent(intent);
+		if (DBG) {
+			Log.d(TAG, "Activity " + this + " onNewIntent");
+		}
+		
+		if (activityProxy != null) {
+			IntentProxy ip = new IntentProxy(activityProxy.getTiContext(),intent);
+			KrollDict data = new KrollDict();
+			data.put(TiC.PROPERTY_INTENT, ip);
+			activityProxy.fireSyncEvent(TiC.EVENT_NEW_INTENT, data);
 		}
 	}
 
@@ -617,6 +630,19 @@ public abstract class TiBaseActivity extends Activity
 			Log.d(TAG, "Activity " + this + " onDestroy");
 		}
 		super.onDestroy();
+		// Our Activities are currently unable to recover from Android-forced restarts,
+		// so we need to relaunch the application entirely.
+		if (!isFinishing())
+		{
+			if (!shouldFinishRootActivity()) {
+				// Put it in, because we want it to finish root in this case.
+				getIntent().putExtra(TiC.INTENT_PROPERTY_FINISH_ROOT, true);
+			}
+			getTiApp().scheduleRestart(250);
+			finish();
+			return;
+		}
+
 		fireOnDestroy();
 
 		if (orientationListener != null) {
@@ -672,7 +698,7 @@ public abstract class TiBaseActivity extends Activity
 			TiApplication app = getTiApp();
 			if (app != null) {
 				TiRootActivity rootActivity = app.getRootActivity();
-				if (rootActivity != null) {
+				if (rootActivity != null && !(rootActivity.equals(this))) {
 					rootActivity.finish();
 				}
 			}

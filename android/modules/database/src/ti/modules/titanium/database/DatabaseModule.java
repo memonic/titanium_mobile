@@ -14,10 +14,11 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
 
+import org.appcelerator.kroll.KrollInvocation;
 import org.appcelerator.kroll.KrollModule;
 import org.appcelerator.kroll.annotations.Kroll;
 import org.appcelerator.titanium.TiContext;
-import org.appcelerator.titanium.TiFile;
+import org.appcelerator.titanium.TiFileProxy;
 import org.appcelerator.titanium.io.TiBaseFile;
 import org.appcelerator.titanium.io.TiFileFactory;
 import org.appcelerator.titanium.util.Log;
@@ -34,6 +35,12 @@ public class DatabaseModule extends KrollModule
 	private static final String LCAT = "TiDatabase";
 	private static final boolean DBG = TiConfig.LOGD;
 
+	@Kroll.constant public static final int FIELD_TYPE_UNKNOWN = -1;
+	@Kroll.constant public static final int FIELD_TYPE_STRING = 0;
+	@Kroll.constant public static final int FIELD_TYPE_INT = 1;
+	@Kroll.constant public static final int FIELD_TYPE_FLOAT = 2;
+	@Kroll.constant public static final int FIELD_TYPE_DOUBLE = 3;
+	
 	public DatabaseModule(TiContext tiContext) {
 		super(tiContext);
 	}
@@ -43,9 +50,9 @@ public class DatabaseModule extends KrollModule
 		TiDatabaseProxy dbp = null;
 
 		try {
-			if (file instanceof TiFile) {
+			if (file instanceof TiFileProxy) {
 				// File support is read-only for now. The NO_LOCALIZED_COLLATORS flag means the database doesn't have Android metadata (i.e. vanilla)
-				TiFile tiFile = (TiFile) file;
+				TiFileProxy tiFile = (TiFileProxy) file;
 				String absolutePath = tiFile.getBaseFile().getNativeFile().getAbsolutePath();
 				Log.d(LCAT, "Opening database from filesystem: " + absolutePath);
 				
@@ -64,16 +71,17 @@ public class DatabaseModule extends KrollModule
 		} catch (SQLException e) {
 			String msg = "Error opening database: " + dbp.getName() + " msg=" + e.getMessage();
 			Log.e(LCAT, msg, e);
-			//TODO throw exception
+			throw e;
 		}
 
 		return dbp;
 	}
 
 	@Kroll.method
-	public TiDatabaseProxy install(String url, String name)
+	public TiDatabaseProxy install(KrollInvocation invocation, String url, String name) throws IOException
 	{
 		try {
+			TiContext tiContext = invocation.getTiContext();
 			Context ctx = getTiContext().getTiApp();
 			for (String dbname : ctx.databaseList())
 			{
@@ -90,7 +98,7 @@ public class DatabaseModule extends KrollModule
 				Log.d(LCAT,"db url is = "+url);
 			}
 
-			String path = getTiContext().resolveUrl(null, url);
+			String path = tiContext.resolveUrl(null, url);
 			TiBaseFile srcDb = TiFileFactory.createTitaniumFile(getTiContext(), path, false);
 
 			if (DBG) {
@@ -122,14 +130,12 @@ public class DatabaseModule extends KrollModule
 		} catch (SQLException e) {
 			String msg = "Error installing database: " + name + " msg=" + e.getMessage();
 			Log.e(LCAT, msg, e);
-			//TODO throw exception
+			throw e;
 		}
 		catch (IOException e) {
 			String msg = "Error installing database: " + name + " msg=" + e.getMessage();
 			Log.e(LCAT, msg, e);
-			//TODO throw exception
+			throw e;
 		}
-
-		return null;
 	}
 }
