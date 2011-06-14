@@ -82,6 +82,7 @@ TiOrientationFlags TiOrientationFlagsFromObject(id args)
 -(void)replaceController
 {
 	if (controller != nil) {
+		[(TiViewController *)controller setProxy:nil];
 		RELEASE_TO_NIL(controller);
 		[self controller];
 	}
@@ -89,6 +90,7 @@ TiOrientationFlags TiOrientationFlagsFromObject(id args)
 
 -(void) dealloc {
 	RELEASE_TO_NIL(navController);
+	[(TiViewController *)controller setProxy:nil];
 	RELEASE_TO_NIL(controller);
 	
 	[super dealloc];
@@ -210,6 +212,10 @@ END_UI_THREAD_PROTECTED_VALUE(opened)
 	}
 	VerboseLog(@"%@ (modal:%d)%@",self,modalFlag,CODELOCATION);
 	[[[TiApp app] controller] didHideViewController:controller animated:YES];
+	if ([self _hasListeners:@"close"])
+	{
+		[self fireEvent:@"close" withObject:nil];
+	}
 
 	[self forgetProxy:closeAnimation];
 	RELEASE_TO_NIL(closeAnimation);
@@ -227,6 +233,7 @@ END_UI_THREAD_PROTECTED_VALUE(opened)
 	}
 	
 	RELEASE_TO_NIL(navController);
+	[(TiViewController *)controller setProxy:nil];
 	RELEASE_TO_NIL(controller);
 	
 	[self windowDidClose];
@@ -303,6 +310,7 @@ END_UI_THREAD_PROTECTED_VALUE(opened)
 // to a tab or nil to disassociate
 -(void)_associateTab:(UIViewController*)controller_ navBar:(UINavigationController*)navbar_ tab:(TiProxy<TiTab>*)tab_ 
 {
+	[(TiViewController *)controller setProxy:nil];
 	RELEASE_TO_NIL(controller);
 	RELEASE_TO_NIL(navController);
 	RELEASE_TO_NIL(tab);
@@ -311,6 +319,7 @@ END_UI_THREAD_PROTECTED_VALUE(opened)
 	{
 		navController = [navbar_ retain];
 		controller = [controller_ retain];
+		[(TiViewController *)controller setProxy:self];
 		tab = [tab_ retain];
 		
 		[self _tabAttached];
@@ -597,12 +606,7 @@ END_UI_THREAD_PROTECTED_VALUE(opened)
 	
 	// hold ourself during close
 	[[self retain] autorelease];
-	
-	if ([self _hasListeners:@"close"])
-	{
-		[self fireEvent:@"close" withObject:nil];
-	}
-	
+
 	[[[TiApp app] controller] willHideViewController:controller animated:YES];
 	VerboseLog(@"%@ (modal:%d)%@",self,modalFlag,CODELOCATION);
 	if ([self _handleClose:args])

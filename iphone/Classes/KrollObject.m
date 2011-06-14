@@ -301,6 +301,14 @@ TiValueRef ConvertIdTiValue(KrollContext *context, id obj)
 		}
 		return TiObjectMake(jsContext,KrollMethodClassRef,obj);
 	}
+	else if ([obj isKindOfClass:[KrollFunction class]])
+	{
+		if ([KrollBridge krollBridgeExists:[(KrollFunction *)obj remoteBridge]])
+		{
+			return [(KrollFunction *)obj remoteFunction];
+		}
+		//Otherwise, this flows to null.
+	}
 	else if ([obj isKindOfClass:[KrollObject class]])
 	{
 		KrollContext * ourContext = [(KrollObject *)obj context];
@@ -330,6 +338,11 @@ TiValueRef ConvertIdTiValue(KrollContext *context, id obj)
 		{
 			if (![ourBridge usesProxy:obj])
 			{
+				if (![context isKJSThread])
+				{
+					NSLog(@"[WARN] Creating %@ in a different context than the calling function.",obj);
+					ourBridge = [KrollBridge krollBridgeForThreadName:[[NSThread currentThread] name]];
+				}
 				return [[ourBridge registerProxy:obj] jsobject];
 			}
 			KrollObject * objKrollObject = [ourBridge krollObjectForProxy:obj];
@@ -464,14 +477,35 @@ TiValueRef KrollGetProperty(TiContextRef jsContext, TiObjectRef object, TiString
 			return NULL;
 		}
 		
-		TiObjectRef cachedObject = [o objectForTiString:prop context:jsContext];
-		
-		if ((cachedObject != NULL) && TiObjectIsFunction(jsContext,cachedObject))
-		{
-			return cachedObject;
-		}
-		
+
 		id result = [o valueForKey:name];
+		TiObjectRef cachedObject = [o objectForTiString:prop context:jsContext];
+
+			//TODO: This is kind of an ugly hack and needs revisiting.
+		if ([result isKindOfClass:[KrollFunction class]])
+		{
+			if (![KrollBridge krollBridgeExists:[(KrollFunction *)result remoteBridge]])
+			{
+				//This remote object no longer exists.
+				[o deleteKey:name];
+				result = nil;
+			}
+			else
+			{
+				TiObjectRef remoteFunction = [(KrollFunction *)result remoteFunction];
+				if ((cachedObject != NULL) && (cachedObject != remoteFunction))
+				{
+					[o forgetObjectForTiString:prop context:jsContext];	//Clean up the old property.
+				}
+				if (remoteFunction != NULL)
+				{
+					[o noteObject:remoteFunction forTiString:prop context:jsContext];
+				}
+				return remoteFunction;
+			}
+
+		}
+
 		TiValueRef jsResult = ConvertIdTiValue([o context],result);
 		if ([result isKindOfClass:[KrollObject class]] &&
 				![result isKindOfClass:[KrollCallback class]] && [[result target] isKindOfClass:[TiProxy class]])
@@ -1434,9 +1468,8 @@ bool KrollHasInstance(TiContextRef ctx, TiObjectRef constructor, TiValueRef poss
 		TiValueRef currentCallback = TiObjectGetPropertyAtIndex(jsContext, jsCallbackArray, currentCallbackIndex, NULL);
 		if (currentCallback == callbackFunction)
 		{
-			TiStringRef propertyName = TiStringCreateWithCFString((CFStringRef) [NSString stringWithFormat:@"%d",currentCallbackIndex]);
-			TiObjectDeleteProperty(jsContext, jsCallbackArray, propertyName, NULL);
-			TiStringRelease(propertyName);
+			TiValueRef undefined = TiValueMakeUndefined(jsContext);
+			TiObjectSetPropertyAtIndex(jsContext, jsCallbackArray, currentCallbackIndex, undefined, NULL);
 		}
 	}
 }
@@ -1482,6 +1515,11 @@ bool KrollHasInstance(TiContextRef ctx, TiObjectRef constructor, TiValueRef poss
 	for (int currentCallbackIndex=0; currentCallbackIndex<arrayLength; currentCallbackIndex++)
 	{
 		TiValueRef currentCallback = TiObjectGetPropertyAtIndex(jsContext, jsCallbackArray, currentCallbackIndex, NULL);
+		currentCallback = TiValueToObject(jsContext, currentCallback, NULL);
+		if ((currentCallback == NULL) || !TiObjectIsFunction(jsContext,currentCallback))
+		{
+			continue;
+		}
 		TiValueRef exception = NULL;
 		TiObjectCallAsFunction(jsContext, currentCallback, [thisObject jsobject], 1, &jsEventData,&exception);
 		if (exception!=NULL)
