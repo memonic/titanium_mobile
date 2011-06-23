@@ -97,6 +97,9 @@ public class TiUIDialog extends TiUIView
 			}
 			
 			processOptions(optionText, selectedIndex);
+		} else if (d.containsKey("items")) {
+			String[] itemText = d.getStringArray("items");
+			processItems(itemText);
 		}
 		super.processProperties(d);
 	}
@@ -104,6 +107,16 @@ public class TiUIDialog extends TiUIView
 	private void processOptions(String[] optionText,int selectedIndex)
 	{
 		getBuilder().setSingleChoiceItems(optionText, selectedIndex , new DialogInterface.OnClickListener() {
+			public void onClick(DialogInterface dialog, int which) {
+				handleEvent(which);
+				hide(null);
+			}
+		});
+	}
+	
+	private void processItems(String[] itemText)
+	{
+		getBuilder().setItems(itemText, new DialogInterface.OnClickListener() {
 			public void onClick(DialogInterface dialog, int which) {
 				handleEvent(which);
 				hide(null);
