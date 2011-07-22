@@ -1,1 +1,1 @@
-version = '1.7.0_memonic'
+version = '1.7.1_memonic'
