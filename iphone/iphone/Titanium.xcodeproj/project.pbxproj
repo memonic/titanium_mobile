@@ -3605,11 +3605,8 @@
 				DA2556451353D2FC005D459C /* TiNetworkSocketProxy.m in Sources */,
 				DAE541E413577BEC00A65123 /* TiDataStream.m in Sources */,
 				B415067A136745E20084074A /* TiFilesystemFileStreamProxy.m in Sources */,
-<<<<<<< HEAD
 				6B2B9CB51384FD1F000BBC7E /* TiUITableViewCellStyleProxy.m in Sources */,
-=======
 				DADD76EA13CCF4FF00CD03AC /* MGSplitView.m in Sources */,
->>>>>>> tags/1_7_2_GA
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
