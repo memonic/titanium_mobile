@@ -870,16 +870,20 @@ class Builder(object):
 		resources_dir = os.path.join(self.top_dir, 'Resources')
 		android_images_dir = os.path.join(resources_dir, 'android', 'images')
 		# look for density-specific default.png's first
+		background_name = 'background.png'
 		if os.path.exists(android_images_dir):
-			pattern = r'/android/images/(high|medium|low|res-[^/]+)/default.png'
+			pattern = r'/android/images/(high|medium|low|res-[^/]+)/default(.9){0,1}.png'
 			for root, dirs, files in os.walk(android_images_dir):
 				for f in files:
 					path = os.path.join(root, f)
-					if re.search(pattern, path):
+					match = re.search(pattern, path)
+					if match:
+						if match.group(2) and match.group(2) == '.9':
+							background_name = 'background.9.png'
 						res_folder = resource_drawable_folder(path)
 						debug('found %s splash screen at %s' % (res_folder, path))
 						dest_path = os.path.join(self.res_dir, res_folder)
-						dest_file = os.path.join(dest_path, 'background.png')
+						dest_file = os.path.join(dest_path, background_name)
 						if not os.path.exists(dest_path):
 							os.makedirs(dest_path)
 						if Deltafy.needs_update(path, dest_file):
@@ -888,8 +892,11 @@ class Builder(object):
 							shutil.copy(path, dest_file)
 
 		default_png = os.path.join(self.assets_resources_dir, 'default.png')
+		if not os.path.exists(default_png):
+			default_png = os.path.join(self.assets_resources_dir, 'default.9.png')
+		debug("asset default png: "+default_png)
 		support_default_png = os.path.join(self.support_resources_dir, 'default.png')
-		background_png = os.path.join(self.project_dir, 'res','drawable','background.png')
+		background_png = os.path.join(self.project_dir, 'res','drawable',background_name)
 		if os.path.exists(default_png) and Deltafy.needs_update(default_png, background_png):
 			self.res_changed = True
 			debug("found splash screen at %s" % os.path.abspath(default_png))
